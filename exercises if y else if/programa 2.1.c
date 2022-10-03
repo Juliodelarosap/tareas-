@@ -6,7 +6,7 @@ universitario, escribe aprobado si su promedio es mayor o igual a 6.
 
 PRO: variable de tipo real.  */
 
-void main(void)
+void main(void)//
 {
 float PRO; // variable de coma flotante se usa float
 printf("ingrese el promedio del alumno: ");
