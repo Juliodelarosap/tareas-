@@ -1,0 +1,85 @@
+import network
+import socket
+import ujson
+import machine
+import uhttpd
+
+# Configuración de la red WiFi
+ssid = "room_link"
+password = "your_password"
+
+# Configuración de pines
+pins = [machine.Pin(pin_num, machine.Pin.OUT) for pin_num in range(5)]
+
+# Configuración del servidor HTTP
+server = uhttpd.Server()
+
+def toggle_pin(pin_num):
+    pin = pins[pin_num]
+    pin.value(not pin.value())
+
+def generate_page():
+    page = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>ESP32 Control</title>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    </head>
+    <body>
+        <div class="container">
+            <h2>ESP32 Control Panel</h2>
+            <button class="btn btn-primary" onclick="togglePin(0)">Toggle Pin 0</button>
+            <button class="btn btn-primary" onclick="togglePin(1)">Toggle Pin 1</button>
+            <button class="btn btn-primary" onclick="togglePin(2)">Toggle Pin 2</button>
+            <button class="btn btn-primary" onclick="togglePin(3)">Toggle Pin 3</button>
+            <button class="btn btn-primary" onclick="togglePin(4)">Toggle Pin 4</button>
+        </div>
+        
+        <script>
+            function togglePin(pin) {
+                fetch("/toggle/" + pin)
+                    .then(response => response.text())
+                    .then(data => console.log(data))
+                    .catch(error => console.error(error));
+            }
+        </script>
+    </body>
+    </html>
+    """
+    return page
+
+def parse_request(request):
+    request = request.decode('utf-8')
+    if "GET /toggle/" in request:
+        pin_num = int(request.split("/toggle/")[1][0])
+        toggle_pin(pin_num)
+
+def main():
+    ap = network.WLAN(network.AP_IF)
+    ap.active(True)
+    ap.config(essid=ssid, password=password)
+
+    print("Creada red WiFi:", ssid)
+
+    sta = network.WLAN(network.STA_IF)
+    sta.active(True)
+
+    while not sta.isconnected():
+        pass
+
+    print("Conectado a:", sta.ifconfig())
+
+    server.listen(80)
+    print("Servidor web escuchando en: http://{}".format(sta.ifconfig()[0]))
+
+    while True:
+        client_sock, client_addr = server.accept()
+        request = client_sock.recv(1024)
+        parse_request(request)
+        response = generate_page()
+        client_sock.send(response)
+        client_sock.close()
+
+if __name__ == '__main__':
+    main()
